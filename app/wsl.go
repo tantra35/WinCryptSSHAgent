@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"fmt"
-	"github.com/buptczq/WinCryptSSHAgent/utils"
 	"io"
 	"net"
 	"os"
@@ -11,6 +10,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/buptczq/WinCryptSSHAgent/utils"
+	"github.com/lxn/walk"
 )
 
 type WSL struct {
@@ -90,16 +92,21 @@ func (*WSL) AppId() AppId {
 	return APP_WSL
 }
 
-func (s *WSL) Menu(register func(id AppId, name string, handler func())) {
-	register(s.AppId(), "Show "+s.AppId().String()+" Settings", s.onClick)
+func (s *WSL) Menu(ni *walk.NotifyIcon) {
+	laction := walk.NewAction()
+	ni.ContextMenu().Actions().Add(laction)
+	laction.SetText("Show " + s.AppId().String() + " Settings")
+	laction.Triggered().Attach(func() {
+		s.onClick()
+	})
 }
 
 func (s *WSL) onClick() {
 	if s.running {
-		if utils.MessageBox(s.AppId().FullName()+" (OK to copy):", s.help, utils.MB_OKCANCEL) == utils.IDOK {
+		if walk.MsgBox(nil, s.AppId().FullName()+" (OK to copy):", s.help, walk.MsgBoxOKCancel) == utils.IDOK {
 			utils.SetClipBoard(s.help)
 		}
 	} else {
-		utils.MessageBox("Error:", s.AppId().String()+" agent doesn't work!", utils.MB_ICONWARNING)
+		walk.MsgBox(nil, "Error:", s.AppId().String()+" agent doesn't work!", walk.MsgBoxIconWarning)
 	}
 }

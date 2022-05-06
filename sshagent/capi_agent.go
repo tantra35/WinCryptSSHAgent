@@ -5,12 +5,14 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"github.com/buptczq/WinCryptSSHAgent/capi"
-	"github.com/buptczq/WinCryptSSHAgent/utils"
-	"golang.org/x/crypto/ssh"
-	"golang.org/x/crypto/ssh/agent"
 	"os"
 	"sync"
+
+	"github.com/buptczq/WinCryptSSHAgent/capi"
+	"github.com/buptczq/WinCryptSSHAgent/utils"
+	"github.com/lxn/walk"
+	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/agent"
 )
 
 type sshKey struct {
@@ -122,7 +124,7 @@ func (s *CAPIAgent) SignWithFlags(key ssh.PublicKey, data []byte, flags agent.Si
 
 	if os.Getenv("WCSA_CHECKSVR") == "1" {
 		if ok, err := utils.CheckSCardSvrStatus(); err == nil && !ok {
-			if utils.MessageBox("Warning:", "Smart Card Service is stopped! Do you want to restart it?", utils.MB_OKCANCEL) == utils.IDOK {
+			if walk.MsgBox(nil, "Warning:", "Smart Card Service is stopped! Do you want to restart it?", walk.MsgBoxOKCancel) == utils.IDOK {
 				utils.StartSCardSvr()
 			}
 		}

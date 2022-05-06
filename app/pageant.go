@@ -2,10 +2,12 @@ package app
 
 import (
 	"context"
-	"github.com/buptczq/WinCryptSSHAgent/utils"
 	"io"
 	"os"
 	"sync"
+
+	"github.com/buptczq/WinCryptSSHAgent/utils"
+	"github.com/lxn/walk"
 )
 
 type Pageant struct{}
@@ -42,5 +44,5 @@ func (*Pageant) AppId() AppId {
 	return APP_PAGEANT
 }
 
-func (s *Pageant) Menu(register func(id AppId, name string, handler func())) {
+func (s *Pageant) Menu(ni *walk.NotifyIcon) {
 }

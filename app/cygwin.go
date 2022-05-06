@@ -6,7 +6,6 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"fmt"
-	"github.com/buptczq/WinCryptSSHAgent/utils"
 	"io"
 	"net"
 	"os"
@@ -14,6 +13,9 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/buptczq/WinCryptSSHAgent/utils"
+	"github.com/lxn/walk"
 )
 
 type Cygwin struct {
@@ -122,17 +124,22 @@ func (*Cygwin) AppId() AppId {
 	return APP_CYGWIN
 }
 
-func (s *Cygwin) Menu(register func(id AppId, name string, handler func())) {
-	register(s.AppId(), "Show "+s.AppId().String()+" Settings", s.onClick)
+func (s *Cygwin) Menu(ni *walk.NotifyIcon) {
+	laction := walk.NewAction()
+	ni.ContextMenu().Actions().Add(laction)
+	laction.SetText("Show " + s.AppId().String() + " Settings")
+	laction.Triggered().Attach(func() {
+		s.onClick()
+	})
 }
 
 func (s *Cygwin) onClick() {
 	if s.running {
 		help := fmt.Sprintf(`export SSH_AUTH_SOCK="%s"`, s.sockfile)
-		if utils.MessageBox(s.AppId().FullName()+" (OK to copy):", help, utils.MB_OKCANCEL) == utils.IDOK {
+		if walk.MsgBox(nil, s.AppId().FullName()+" (OK to copy):", help, walk.MsgBoxOKCancel) == utils.IDOK {
 			utils.SetClipBoard(help)
 		}
 	} else {
-		utils.MessageBox("Error:", s.AppId().String()+" agent doesn't work!", utils.MB_ICONWARNING)
+		walk.MsgBox(nil, "Error:", s.AppId().String()+" agent doesn't work!", walk.MsgBoxIconWarning)
 	}
 }

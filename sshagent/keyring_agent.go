@@ -3,6 +3,7 @@ package sshagent
 import (
 	"bytes"
 	"encoding/base64"
+
 	"github.com/buptczq/WinCryptSSHAgent/utils"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"

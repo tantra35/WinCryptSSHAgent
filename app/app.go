@@ -3,6 +3,8 @@ package app
 import (
 	"context"
 	"io"
+
+	"github.com/lxn/walk"
 )
 
 const (
@@ -24,7 +26,7 @@ const (
 type Application interface {
 	AppId() AppId
 	Run(ctx context.Context, handler func(conn io.ReadWriteCloser)) error
-	Menu(func(id AppId, name string, handler func()))
+	Menu(*walk.NotifyIcon)
 }
 
 type AppId int

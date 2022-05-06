@@ -66,11 +66,33 @@ func (a *WrappedAgent) Add(key agent.AddedKey) error {
 }
 
 func (a *WrappedAgent) Remove(key ssh.PublicKey) error {
-	return a.agents[0].Remove(key)
+	var err error
+
+	for _, agent_ := range a.agents {
+		err = agent_.Remove(key)
+		if err == nil {
+			return nil
+		}
+	}
+
+	return err
 }
 
 func (a *WrappedAgent) RemoveAll() error {
-	return a.agents[0].RemoveAll()
+	errs := []error{}
+
+	for _, agent_ := range a.agents {
+		err := agent_.RemoveAll()
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	if len(errs) == 0 {
+		return nil
+	}
+
+	return errs[0]
 }
 
 func (a *WrappedAgent) Lock(passphrase []byte) error {

@@ -5,11 +5,13 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"github.com/buptczq/WinCryptSSHAgent/utils"
-	"golang.org/x/crypto/ssh"
 	"io"
 	"net"
 	"sync"
+
+	"github.com/buptczq/WinCryptSSHAgent/utils"
+	"github.com/lxn/walk"
+	"golang.org/x/crypto/ssh"
 )
 
 const (
@@ -58,7 +60,7 @@ func (*XShell) AppId() AppId {
 	return APP_XSHELL
 }
 
-func (s *XShell) Menu(register func(id AppId, name string, handler func())) {
+func (s *XShell) Menu(ni *walk.NotifyIcon) {
 }
 
 type initAgentMsg struct {
