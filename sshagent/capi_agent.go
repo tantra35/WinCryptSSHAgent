@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"syscall"
 
 	"github.com/buptczq/WinCryptSSHAgent/capi"
 	"github.com/buptczq/WinCryptSSHAgent/utils"
@@ -22,15 +23,20 @@ type sshKey struct {
 }
 
 type CAPIAgent struct {
-	mu   sync.Mutex
-	keys []*sshKey
+	mu        sync.Mutex
+	certstore syscall.Handle
+	keys      []*sshKey
 }
 
 func (s *CAPIAgent) close() (err error) {
 	for _, key := range s.keys {
 		err = key.cert.Free()
 	}
+
 	s.keys = nil
+	syscall.CertCloseStore(s.certstore, 0)
+	s.certstore = 0
+
 	return
 }
 
@@ -42,11 +48,13 @@ func (s *CAPIAgent) Close() (err error) {
 }
 
 func (s *CAPIAgent) loadCerts() (err error) {
-	certs, err := capi.LoadUserCerts()
+	certs, certstore, err := capi.LoadUserCerts(s.certstore)
 	if err != nil {
 		return
 	}
+
 	s.keys = make([]*sshKey, 0, len(certs))
+	s.certstore = certstore
 
 	for _, cert := range certs {
 		if !FilterCertificateEKU(cert) {
@@ -174,12 +182,54 @@ func (*CAPIAgent) Add(key agent.AddedKey) error {
 	return fmt.Errorf("implement me")
 }
 
-func (*CAPIAgent) Remove(key ssh.PublicKey) error {
-	return fmt.Errorf("implement me")
+func (s *CAPIAgent) Remove(key ssh.PublicKey) error {
+	wanted := key.Marshal()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for lkeyindex, lkey := range s.keys {
+		cert := lkey.cert
+
+		pub, err := ssh.NewPublicKey(cert.PublicKey)
+		if err != nil {
+			return err
+		}
+
+		if bytes.Equal(pub.Marshal(), wanted) {
+			err := cert.Delete()
+			if err != nil {
+				return err
+			}
+
+			s.keys = append(s.keys[:lkeyindex], s.keys[lkeyindex+1:]...)
+			defer utils.Notify(
+				"Cert Removed",
+				"Certificate <"+lkey.comment+"> has been removed from windows cert store",
+			)
+
+			return nil
+		}
+	}
+
+	return errors.New("not found")
 }
 
-func (*CAPIAgent) RemoveAll() error {
-	return fmt.Errorf("implement me")
+func (s *CAPIAgent) RemoveAll() error {
+	for _, lkey := range s.keys {
+		cert := lkey.cert
+		err := cert.Delete()
+		if err != nil {
+			return err
+		}
+	}
+
+	s.keys = nil
+	defer utils.Notify(
+		"Cert Removed",
+		"All Certificates has been removed from windows cert store",
+	)
+
+	return nil
 }
 
 func (*CAPIAgent) Lock(passphrase []byte) error {

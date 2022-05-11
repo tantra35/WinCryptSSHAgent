@@ -113,6 +113,10 @@ func main() {
 
 	switch len(opts.Verbose) {
 	case 3:
+		os.Setenv("WCSA_DEBUG", "1")
+	}
+
+	if os.Getenv("WCSA_DEBUG") == "1" {
 		initDebugLog()
 	}
 

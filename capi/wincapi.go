@@ -3,9 +3,10 @@ package capi
 import (
 	"crypto/x509"
 	"fmt"
-	"github.com/fullsailor/pkcs7"
 	"syscall"
 	"unsafe"
+
+	"github.com/fullsailor/pkcs7"
 )
 
 const (
@@ -25,6 +26,7 @@ var (
 	procCryptSignMessage                  = modcrypt32.NewProc("CryptSignMessage")
 	procCertDuplicateCertificateContext   = modcrypt32.NewProc("CertDuplicateCertificateContext")
 	procCertGetCertificateContextProperty = modcrypt32.NewProc("CertGetCertificateContextProperty")
+	procCertDeleteCertificateFromStore    = modcrypt32.NewProc("CertDeleteCertificateFromStore")
 )
 
 type cryptoapiBlob struct {
@@ -104,6 +106,15 @@ func certGetCertificateContextProperty(context *syscall.CertContext, dwPropId ui
 	return int(r0)
 }
 
+func certDeleteCertificateFromStore(context *syscall.CertContext) error {
+	r0, _, e1 := syscall.Syscall(procCertDeleteCertificateFromStore.Addr(), 1, uintptr(unsafe.Pointer(context)), 0, 0)
+	if r0 == 0 {
+		return e1
+	}
+
+	return nil
+}
+
 type Certificate struct {
 	certContext uintptr
 	*x509.Certificate
@@ -125,7 +136,17 @@ func (s *Certificate) Copy() (*Certificate, error) {
 	}, nil
 }
 
-func LoadUserCerts() ([]*Certificate, error) {
+func (s *Certificate) Delete() error {
+	context := (*syscall.CertContext)(unsafe.Pointer(s.certContext))
+	err := certDeleteCertificateFromStore(context)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func LoadUserCerts(_store syscall.Handle) ([]*Certificate, syscall.Handle, error) {
 	const (
 		CERT_STORE_PROV_SYSTEM_A       = 9
 		CERT_SYSTEM_STORE_CURRENT_USER = 0x00010000
@@ -133,18 +154,22 @@ func LoadUserCerts() ([]*Certificate, error) {
 		CRYPT_E_NOT_FOUND              = 0x80092004
 		CERT_KEY_SPEC_PROP_ID          = 6
 	)
-	ptr, _ := syscall.BytePtrFromString("My")
-	store, err := syscall.CertOpenStore(
-		CERT_STORE_PROV_SYSTEM_A,
-		0,
-		0,
-		CERT_SYSTEM_STORE_CURRENT_USER|CERT_STORE_READONLY_FLAG,
-		uintptr(unsafe.Pointer(ptr)),
-	)
-	if err != nil {
-		return nil, err
+
+	var err error
+	store := _store
+	if store == 0 {
+		ptr, _ := syscall.BytePtrFromString("My")
+		store, err = syscall.CertOpenStore(
+			CERT_STORE_PROV_SYSTEM_A,
+			0,
+			0,
+			CERT_SYSTEM_STORE_CURRENT_USER,
+			uintptr(unsafe.Pointer(ptr)),
+		)
+		if err != nil {
+			return nil, 0, err
+		}
 	}
-	defer syscall.CertCloseStore(store, 0)
 
 	certs := make([]*Certificate, 0)
 	var cert *syscall.CertContext
@@ -156,7 +181,7 @@ func LoadUserCerts() ([]*Certificate, error) {
 					break
 				}
 			}
-			return nil, err
+			return nil, 0, err
 		}
 		if cert == nil {
 			break
@@ -181,7 +206,7 @@ func LoadUserCerts() ([]*Certificate, error) {
 			})
 		}
 	}
-	return certs, nil
+	return certs, store, nil
 }
 
 func Sign(alg string, cert *Certificate, data []byte) (*pkcs7.PKCS7, error) {
