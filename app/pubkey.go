@@ -168,9 +168,10 @@ func (m *PuttyKeysModel) RemoveItem(itemIndex int) error {
 }
 
 type PubKeyView struct {
-	ag     agent.Agent
-	lldldg *walk.Dialog
-	tv     *walk.TableView
+	ag           agent.Agent
+	prevFilePath string
+	lldldg       *walk.Dialog
+	tv           *walk.TableView
 }
 
 func (s *PubKeyView) Run(ctx context.Context, handler func(conn io.ReadWriteCloser)) error {
@@ -185,6 +186,10 @@ func (*PubKeyView) AppId() AppId {
 func (s *PubKeyView) Menu(ni *walk.NotifyIcon) {
 	laction := walk.NewAction()
 	laction.SetDefault(true)
+
+	ni.DoubleClicked().Attach(func(x, y int, button walk.MouseButton) {
+		s.onClick()
+	})
 
 	ni.ContextMenu().Actions().Add(laction)
 	laction.SetText("View Keys")
@@ -206,6 +211,7 @@ func (s *PubKeyView) Menu(ni *walk.NotifyIcon) {
 func (s *PubKeyView) onClick() {
 	if s.lldldg != nil {
 		s.lldldg.SetFocus()
+		return
 	}
 
 	ico, _ := walk.NewIconFromResourceId(2)
@@ -248,7 +254,7 @@ func (s *PubKeyView) onClick() {
 						OnClicked: func() {
 							dlg := new(walk.FileDialog)
 
-							dlg.FilePath = "d:\\src\\walk\\examples\\tableview"
+							dlg.FilePath = s.prevFilePath
 							dlg.Filter = "Putty ppk Files *.ppk"
 							dlg.Title = "Select an key file"
 
@@ -258,6 +264,7 @@ func (s *PubKeyView) onClick() {
 								return
 							}
 
+							s.prevFilePath = dlg.FilePath
 							err := keysmodel.AddItem(dlg.FilePath)
 							if err != nil {
 								walk.MsgBox(s.lldldg, "Can't add key", err.Error(), walk.MsgBoxIconError)
@@ -286,7 +293,7 @@ func (s *PubKeyView) onClick() {
 
 func (s *PubKeyView) onClickAdd() {
 	dlg := new(walk.FileDialog)
-	dlg.FilePath = "d:\\src\\walk\\examples\\tableview"
+	dlg.FilePath = s.prevFilePath
 	dlg.Filter = "Putty ppk Files *.ppk"
 	dlg.Title = "Select an key file"
 
@@ -313,6 +320,7 @@ func (s *PubKeyView) onClickAdd() {
 			walk.MsgBox(s.lldldg, "Can't add key", err.Error(), walk.MsgBoxIconError)
 		}
 
+		s.prevFilePath = dlg.FilePath
 		s.ag.Add(*privkey)
 	}
 }
