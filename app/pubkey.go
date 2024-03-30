@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/dsa"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/md5"
 	"crypto/rsa"
 	"fmt"
@@ -34,6 +35,9 @@ func NewPuttyKey(_key *agent.Key) (*PuttyKey, error) {
 
 	case *ecdsa.PublicKey:
 		lpubkeylen = key.Params().BitSize
+
+	case *ed25519.PublicKey:
+		lpubkeylen = len(*key) * 8
 
 	case *dsa.PublicKey:
 		lpubkeylen = key.P.BitLen()

@@ -1,6 +1,6 @@
 module github.com/buptczq/WinCryptSSHAgent
 
-go 1.17
+go 1.19
 
 require (
 	github.com/Microsoft/go-winio v0.4.16
@@ -10,8 +10,8 @@ require (
 	github.com/kayrus/putty v1.0.4
 	github.com/linuxkit/virtsock v0.0.0-20180830132707-8e79449dea07
 	github.com/lxn/walk v0.0.0-20210112085537-c389da54e794
-	golang.org/x/crypto v0.0.0-20210513164829-c07d793c2f9a
-	golang.org/x/sys v0.0.0-20210320140829-1e4c9ba3b0c4
+	golang.org/x/crypto v0.11.0
+	golang.org/x/sys v0.10.0
 )
 
 require (
