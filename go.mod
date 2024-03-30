@@ -2,6 +2,10 @@ module github.com/buptczq/WinCryptSSHAgent
 
 go 1.19
 
+replace github.com/Microsoft/go-winio => github.com/buptczq/go-winio v0.4.16-1
+
+replace github.com/lxn/walk => github.com/tantra35/walk v0.0.0-20240330122720-676edb3df880
+
 require (
 	github.com/Microsoft/go-winio v0.4.16
 	github.com/bi-zone/wmi v1.1.4
@@ -24,5 +28,3 @@ require (
 	github.com/scjalliance/comshim v0.0.0-20190308082608-cf06d2532c4e // indirect
 	gopkg.in/Knetic/govaluate.v3 v3.0.0 // indirect
 )
-
-replace github.com/Microsoft/go-winio v0.4.16 => github.com/buptczq/go-winio v0.4.16-1
