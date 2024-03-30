@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"github.com/buptczq/WinCryptSSHAgent/capi"
 	"os"
 	"path/filepath"
 	"sync"
@@ -37,6 +38,7 @@ type Opts struct {
 	InstallHVService bool   `short:"i" description:"Install Hyper-V Guest Communication Services"`
 	DisableCapi      bool   `long:"disable-capi" description:"Disable Windows Crypto API"`
 }
+var disablePINCache = flag.Bool("disable-pin-cache", false, "Clear the Smart Card PIN Cache after each operation")
 
 func installService() {
 	if !utils.IsAdmin() {
@@ -131,6 +133,8 @@ func main() {
 		hvConn.Close()
 		hvClient = true
 	}
+
+	capi.SetDisablePINCache(*disablePINCache)
 
 	// agent
 	var ag agent.Agent
