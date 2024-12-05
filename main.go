@@ -35,10 +35,11 @@ var applications = []app.Application{
 }
 
 type Opts struct {
-	Verbose          []bool `short:"v" long:"verbose" description:"Verbosity"`
-	InstallHVService bool   `short:"i" description:"Install Hyper-V Guest Communication Services"`
-	DisableCapi      bool   `long:"disable-capi" description:"Disable Windows Crypto API"`
-	DisablePINCache  bool   `long:"disable-pin-cache" description:"Clear the Smart Card PIN Cache after each operation"`
+	Verbose           []bool   `short:"v" long:"verbose" description:"Verbosity"`
+	InstallHVService  bool     `short:"i" description:"Install Hyper-V Guest Communication Services"`
+	ExternalAgentPath []string `short:"a" description:"External agent path(win namped pipe only)"`
+	DisableCapi       bool     `long:"disable-capi" description:"Disable Windows Crypto API"`
+	DisablePINCache   bool     `long:"disable-pin-cache" description:"Clear the Smart Card PIN Cache after each operation"`
 }
 
 func installService() {
@@ -166,6 +167,20 @@ func main() {
 		}
 
 		ag.Add(agent.AddedKey{PrivateKey: privkey, Comment: puttyKey.Comment})
+	}
+
+	lexternalAgents := make([]agent.Agent, 0, len(opts.ExternalAgentPath))
+	for _, lexternalAgentPath := range opts.ExternalAgentPath {
+		lpipe, lerr := os.OpenFile(lexternalAgentPath, os.O_RDWR, os.ModeNamedPipe)
+		if lerr != nil {
+			log.Fatal(lerr)
+		}
+
+		lexternalAgents = append(lexternalAgents, agent.NewClient(lpipe))
+	}
+
+	if len(lexternalAgents) > 0 {
+		ag = sshagent.NewWrappedAgent(ag, lexternalAgents)
 	}
 
 	// systray
