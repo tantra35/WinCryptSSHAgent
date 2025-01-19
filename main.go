@@ -173,6 +173,7 @@ func main() {
 	for _, lexternalAgentPath := range opts.ExternalAgentPath {
 		lpipe, lerr := os.OpenFile(lexternalAgentPath, os.O_RDWR, os.ModeNamedPipe)
 		if lerr != nil {
+			walk.MsgBox(nil, "Can't open pipe to external agent", err.Error(), walk.MsgBoxIconError)
 			log.Fatal(lerr)
 		}
 
