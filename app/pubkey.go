@@ -26,7 +26,14 @@ type PuttyKey struct {
 }
 
 func NewPuttyKey(_key *agent.Key) (*PuttyKey, error) {
+	pubKey, lerr := ssh.ParsePublicKey(_key.Blob)
 	puttyKey := &putty.Key{Algo: _key.Type(), PublicKey: _key.Blob}
+	if lerr == nil {
+		if k, lok := pubKey.(*ssh.Certificate); lok {
+			puttyKey = &putty.Key{Algo: k.Key.Type(), PublicKey: k.Key.Marshal()}
+		}
+	}
+
 	pubkey, _ := puttyKey.ParseRawPublicKey()
 	var lpubkeylen int = -1
 	switch key := pubkey.(type) {
