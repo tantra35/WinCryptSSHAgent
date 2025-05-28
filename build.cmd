@@ -1,7 +1,7 @@
 @echo off
 setlocal
 
-set GOROOT=%MYTOOLSPATH%\go-1.21.x
+set GOROOT=%MYTOOLSPATH%\go-1.23.x
 set GOPATH=%MYLIBSPATH%\Golang
 set PATH=%GOROOT%\bin;%PATH%
 

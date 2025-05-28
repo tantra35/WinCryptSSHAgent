@@ -7,12 +7,12 @@
 	"settings": {
 		"terminal.integrated.cwd": "${workspaceFolder}",
 		"terminal.integrated.env.windows": {
-			"PATH": "${env:MYTOOLSPATH}/go-1.21.x/bin;${env:PATH}"
+			"PATH": "${env:MYTOOLSPATH}/go-1.23.x/bin;${env:PATH}"
 		},
 		"terminal.integrated.env.linux": {
-			"PATH": "${env:MYTOOLSPATH}/go-1.21.x/bin:${env:PATH}"
+			"PATH": "${env:MYTOOLSPATH}/go-1.23.x/bin:${env:PATH}"
 		},
-		"go.goroot": "${env:MYTOOLSPATH}/go-1.21.x",
+		"go.goroot": "${env:MYTOOLSPATH}/go-1.23.x",
 		"go.gopath": "${env:MYLIBSPATH}/golang",
 		"go.testFlags": [
 			"-v"
