@@ -12,6 +12,7 @@ import (
 
 	"github.com/kayrus/putty"
 	"github.com/lxn/walk"
+	"github.com/lxn/win"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
 
@@ -199,6 +200,12 @@ func (s *PubKeyView) Menu(ni *walk.NotifyIcon) {
 	laction.SetDefault(true)
 
 	ni.DoubleClicked().Attach(func(x, y int, button walk.MouseButton) {
+		if s.lldldg != nil {
+			win.SetForegroundWindow(s.lldldg.Handle())
+			s.lldldg.SetFocus()
+			return
+		}
+
 		s.onClick()
 	})
 
@@ -220,11 +227,6 @@ func (s *PubKeyView) Menu(ni *walk.NotifyIcon) {
 }
 
 func (s *PubKeyView) onClick() {
-	if s.lldldg != nil {
-		s.lldldg.SetFocus()
-		return
-	}
-
 	ico, _ := walk.NewIconFromResourceId(2)
 	keysmodel := NewPuttyKeysModel(s.ag)
 	Dialog{
@@ -297,6 +299,7 @@ func (s *PubKeyView) onClick() {
 	}.Create(nil)
 
 	s.lldldg.Show()
+	win.SetForegroundWindow(s.lldldg.Handle())
 	s.lldldg.Closing().Attach(func(canceled *bool, reason walk.CloseReason) {
 		s.lldldg = nil
 	})
