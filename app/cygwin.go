@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -12,7 +13,6 @@ import (
 	"path/filepath"
 	"sync"
 	"syscall"
-	"time"
 
 	"github.com/buptczq/WinCryptSSHAgent/utils"
 	"github.com/lxn/walk"
@@ -90,21 +90,20 @@ func (s *Cygwin) Run(ctx context.Context, handler func(conn io.ReadWriteCloser))
 		return err
 	}
 	s.running = true
+	// close the listener on context cancellation to unblock Accept
+	go func() {
+		<-ctx.Done()
+		l.Close()
+	}()
 	// loop
 	wg := new(sync.WaitGroup)
 	for {
-		select {
-		case <-ctx.Done():
-			wg.Wait()
-			return nil
-		default:
-		}
-		utils.SetListenerDeadline(l, time.Now().Add(time.Second))
 		conn, err := l.Accept()
-		if opErr, ok := err.(*net.OpError); ok && opErr.Timeout() {
-			continue
-		}
 		if err != nil {
+			if errors.Is(err, net.ErrClosed) {
+				wg.Wait()
+				return nil
+			}
 			return err
 		}
 		err = cygwinHandshake(conn, uuid)

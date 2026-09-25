@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -40,6 +41,41 @@ type Opts struct {
 	ExternalAgentPath []string `short:"a" description:"External agent path(win namped pipe only)"`
 	DisableCapi       bool     `long:"disable-capi" description:"Disable Windows Crypto API"`
 	DisablePINCache   bool     `long:"disable-pin-cache" description:"Clear the Smart Card PIN Cache after each operation"`
+	AllowMultiple     bool     `long:"allow-multiple" description:"Allow multiple agent instances"`
+}
+
+const instanceMutexName = `Local\WinCryptSSHAgent.Mutex`
+
+// acquireInstanceMutex tries to take ownership of the per-session instance
+// mutex. allowMultiple permits running alongside the owner (the handle is
+// still kept open so the process keeps a reference for its whole lifetime).
+func acquireInstanceMutex(allowMultiple bool) (windows.Handle, error) {
+	name, err := windows.UTF16PtrFromString(instanceMutexName)
+	if err != nil {
+		return 0, err
+	}
+	h, err := windows.CreateMutex(nil, false, name)
+	if h == 0 {
+		return 0, err
+	}
+	if allowMultiple {
+		return h, nil
+	}
+	event, waitErr := windows.WaitForSingleObject(h, 0)
+	if waitErr != nil {
+		windows.CloseHandle(h)
+		return 0, fmt.Errorf("failed to check instance mutex: %v", waitErr)
+	}
+	switch event {
+	case windows.WAIT_OBJECT_0:
+		return h, nil
+	case uint32(windows.WAIT_TIMEOUT):
+		windows.CloseHandle(h)
+		return 0, fmt.Errorf("another %s instance is already running (use --allow-multiple to override)", agentTitle)
+	default:
+		windows.CloseHandle(h)
+		return 0, fmt.Errorf("failed to check instance mutex: unexpected wait event %d", event)
+	}
 }
 
 func installService() {
@@ -128,6 +164,14 @@ func main() {
 		installService()
 		return
 	}
+
+	mutex, err := acquireInstanceMutex(opts.AllowMultiple)
+	if err != nil {
+		walk.MsgBox(nil, agentTitle, err.Error(), walk.MsgBoxIconWarning)
+		return
+	}
+	defer windows.CloseHandle(mutex)
+
 	// hyper-v
 	hvClient := false
 	hvConn, err := utils.ConnectHyperV()

@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net"
 	"sync"
@@ -159,16 +160,20 @@ func (s *VSock) Run(ctx context.Context, handler func(conn io.ReadWriteCloser)) 
 	go s.wsl2Watcher(ctx, handler)
 
 	wg := new(sync.WaitGroup)
-	// context cancelled
+	// close the listener on context cancellation to unblock Accept
 	go func() {
 		<-ctx.Done()
-		wg.Wait()
+		pipe.Close()
 	}()
 	// loop
 	for {
 		conn, err := pipe.Accept()
 		if err != nil {
-			return nil
+			if errors.Is(err, net.ErrClosed) {
+				wg.Wait()
+				return nil
+			}
+			return err
 		}
 		wg.Add(1)
 		go func() {

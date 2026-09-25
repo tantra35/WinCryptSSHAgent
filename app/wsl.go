@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -9,7 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/buptczq/WinCryptSSHAgent/utils"
 	"github.com/lxn/walk"
@@ -63,21 +63,20 @@ func (s *WSL) Run(ctx context.Context, handler func(conn io.ReadWriteCloser)) er
 		s.help = fmt.Sprintf("socat UNIX-LISTEN:/tmp/ssh-capi-agent.sock,reuseaddr,fork TCP:localhost:%d &\n", l.Addr().(*net.TCPAddr).Port)
 		s.help += "export SSH_AUTH_SOCK=/tmp/ssh-capi-agent.sock"
 	}
+	// close the listener on context cancellation to unblock Accept
+	go func() {
+		<-ctx.Done()
+		l.Close()
+	}()
 	// loop
 	wg := new(sync.WaitGroup)
 	for {
-		select {
-		case <-ctx.Done():
-			wg.Wait()
-			return nil
-		default:
-		}
-		utils.SetListenerDeadline(l, time.Now().Add(time.Second))
 		conn, err := l.Accept()
-		if opErr, ok := err.(*net.OpError); ok && opErr.Timeout() {
-			continue
-		}
 		if err != nil {
+			if errors.Is(err, net.ErrClosed) {
+				wg.Wait()
+				return nil
+			}
 			return err
 		}
 		wg.Add(1)

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -32,14 +33,20 @@ func (s *XShell) Run(ctx context.Context, handler func(conn io.ReadWriteCloser))
 	defer win.Close()
 
 	wg := new(sync.WaitGroup)
+	// close the listener on context cancellation to unblock Accept
+	go func() {
+		<-ctx.Done()
+		win.Close()
+	}()
 	l := win.Listener()
 	for {
 		conn, err := l.Accept()
 		if err != nil {
-			if err != io.ErrClosedPipe {
-				return err
+			if errors.Is(err, net.ErrClosed) {
+				wg.Wait()
+				return nil
 			}
-			return nil
+			return err
 		}
 		err = xshellHandshake(conn, s.cookie)
 		if err != nil {

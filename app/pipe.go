@@ -2,8 +2,10 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"sync"
 
 	"github.com/Microsoft/go-winio"
@@ -26,19 +28,20 @@ func (s *NamedPipe) Run(ctx context.Context, handler func(conn io.ReadWriteClose
 	defer pipe.Close()
 
 	wg := new(sync.WaitGroup)
-	// context cancelled
+	// close the listener on context cancellation to unblock Accept
 	go func() {
 		<-ctx.Done()
-		wg.Wait()
+		pipe.Close()
 	}()
 	// loop
 	for {
 		conn, err := pipe.Accept()
 		if err != nil {
-			if err != winio.ErrPipeListenerClosed {
-				return err
+			if errors.Is(err, net.ErrClosed) || err == winio.ErrPipeListenerClosed {
+				wg.Wait()
+				return nil
 			}
-			return nil
+			return err
 		}
 		wg.Add(1)
 		go func() {
