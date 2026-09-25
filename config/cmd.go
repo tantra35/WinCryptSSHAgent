@@ -12,7 +12,8 @@ import (
 // config.yaml next to the executable) and must exist when non-empty.
 func Resolve(configPath string, add []string, remove []string) ([]Socket, error) {
 	base := DefaultSockets()
-	if configPath == "" {
+	explicit := configPath != ""
+	if !explicit {
 		exe, err := os.Executable()
 		if err != nil {
 			return nil, fmt.Errorf("can't locate executable dir: %w", err)
@@ -27,7 +28,7 @@ func Resolve(configPath string, add []string, remove []string) ([]Socket, error)
 		if len(cfg.Sockets) > 0 {
 			base = cfg.Sockets
 		}
-	} else if configPath != "" {
+	} else if explicit {
 		// explicit --config path must exist
 		return nil, fmt.Errorf("config file not found: %s", configPath)
 	}
