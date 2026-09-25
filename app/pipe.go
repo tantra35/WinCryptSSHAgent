@@ -60,29 +60,11 @@ func (s *NamedPipe) Menu(ni *walk.NotifyIcon) {
 	laction.Triggered().Attach(func() {
 		s.onClick()
 	})
-
-	lsecurecrtaction := walk.NewAction()
-	ni.ContextMenu().Actions().Add(lsecurecrtaction)
-	lsecurecrtaction.SetText("Show " + s.Name() + " (SecureCRT) Settings")
-	lsecurecrtaction.Triggered().Attach(func() {
-		s.onClickSC()
-	})
 }
 
 func (s *NamedPipe) onClick() {
 	if s.running {
 		help := fmt.Sprintf(`set SSH_AUTH_SOCK=%s`, s.pipePath)
-		if walk.MsgBox(nil, s.Name()+" (OK to copy):", help, walk.MsgBoxOKCancel) == utils.IDOK {
-			utils.SetClipBoard(help)
-		}
-	} else {
-		walk.MsgBox(nil, "Error:", s.Name()+" agent doesn't work!", walk.MsgBoxIconWarning)
-	}
-}
-
-func (s *NamedPipe) onClickSC() {
-	if s.running {
-		help := fmt.Sprintf(`setx "VANDYKE_SSH_AUTH_SOCK" "%s"`, s.pipePath)
 		if walk.MsgBox(nil, s.Name()+" (OK to copy):", help, walk.MsgBoxOKCancel) == utils.IDOK {
 			utils.SetClipBoard(help)
 		}
