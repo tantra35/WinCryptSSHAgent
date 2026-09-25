@@ -18,7 +18,7 @@ func Resolve(configPath string, add []string, remove []string) ([]Socket, error)
 		if err != nil {
 			return nil, fmt.Errorf("can't locate executable dir: %w", err)
 		}
-		configPath = filepath.Join(filepath.Dir(exe), "config.yaml")
+		configPath = filepath.Join(filepath.Dir(exe), "WinCryptSSHAgent.yaml")
 	}
 	if _, err := os.Stat(configPath); err == nil {
 		cfg, err := LoadFile(configPath)

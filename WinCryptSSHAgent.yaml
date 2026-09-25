@@ -7,10 +7,10 @@ sockets:
   name: cygwin
   path: C:\Users\rusla\.vkey\socks\vkey-cygwin.sock
   notify: true
-- type: wsl
-  name: wsl
-  path: C:\Users\rusla\.vkey\socks\vkey-wsl.sock
-  notify: true
+#- type: wsl
+#  name: wsl
+#  path: C:\Users\rusla\.vkey\socks\vkey-wsl.sock
+#  notify: true
 - type: pageant
   name: pageant
   path: none

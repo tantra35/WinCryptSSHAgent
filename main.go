@@ -150,7 +150,7 @@ func main() {
 	rootCmd.Flags().BoolVar(&flagAllowMultiple, "allow-multiple", false, "Allow multiple agent instances")
 	rootCmd.Flags().StringArray("socket", nil, "add/override a socket: type=name|path (repeatable)")
 	rootCmd.Flags().StringArray("no-socket", nil, "disable a socket by name (repeatable)")
-	rootCmd.Flags().StringP("config", "c", "", "path to config.yaml (default: config.yaml next to the executable)")
+	rootCmd.Flags().StringP("config", "c", "", "path to config file (default: WinCryptSSHAgent.yaml next to the executable)")
 	rootCmd.Flags().BoolVar(&flagListSockets, "list-sockets", false, "print resolved socket configuration and exit")
 
 	if err := rootCmd.Execute(); err != nil {
