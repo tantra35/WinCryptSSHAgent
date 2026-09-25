@@ -24,6 +24,7 @@ var (
 //$service.SetValue("ElementName", $friendlyName)
 
 type VSock struct {
+	baseApp
 	running bool
 }
 
@@ -183,10 +184,6 @@ func (s *VSock) Run(ctx context.Context, handler func(conn io.ReadWriteCloser)) 
 	}
 }
 
-func (*VSock) AppId() AppId {
-	return APP_HYPERV
-}
-
 func (s *VSock) Menu(ni *walk.NotifyIcon) {
 	if !utils.CheckHvSocket() {
 		return
@@ -194,14 +191,14 @@ func (s *VSock) Menu(ni *walk.NotifyIcon) {
 
 	laction := walk.NewAction()
 	ni.ContextMenu().Actions().Add(laction)
-	laction.SetText("Show WSL2 / Linux On Hyper-V Settings")
+	laction.SetText("Show " + s.Name() + " Settings")
 	laction.Triggered().Attach(func() {
 		s.onClick()
 	})
 
 	lcheckaction := walk.NewAction()
 	ni.ContextMenu().Actions().Add(lcheckaction)
-	lcheckaction.SetText("Check Hyper-V Agent Status")
+	lcheckaction.SetText("Check " + s.Name() + " Agent Status")
 	lcheckaction.Triggered().Attach(func() {
 		s.onCheckClick()
 	})
@@ -221,7 +218,7 @@ if [ $? -ne 0 ]; then
 	rm -f $SSH_AUTH_SOCK
   (setsid nohup socat UNIX-LISTEN:$SSH_AUTH_SOCK,fork SOCKET-CONNECT:40:0:x0000x33332222x02000000x00000000 >/dev/null 2>&1) & disown
 fi`
-	if walk.MsgBox(nil, s.AppId().FullName()+" (OK to copy):", help, walk.MsgBoxOKCancel) == utils.IDOK {
+	if walk.MsgBox(nil, s.Name()+" (OK to copy):", help, walk.MsgBoxOKCancel) == utils.IDOK {
 		utils.SetClipBoard(help)
 	}
 }
@@ -232,16 +229,16 @@ func (s *VSock) onCheckClick() {
 		return
 	}
 
-	walk.MsgBox(nil, s.AppId().FullName()+":", s.AppId().String()+" agent is working!", walk.MsgBoxOK)
+	walk.MsgBox(nil, s.Name()+":", s.Name()+" agent is working!", walk.MsgBoxOK)
 }
 
 func (s *VSock) checkHvService() {
 	if utils.CheckHVService() {
-		walk.MsgBox(nil, "Error:", s.AppId().String()+" agent doesn't work!", walk.MsgBoxIconWarning)
+		walk.MsgBox(nil, "Error:", s.Name()+" agent doesn't work!", walk.MsgBoxIconWarning)
 		return
 	}
 
-	if walk.MsgBox(nil, s.AppId().FullName()+":", s.AppId().String()+" agent is not working! Do you want to enable it?", walk.MsgBoxOKCancel) == utils.IDOK {
+	if walk.MsgBox(nil, s.Name()+":", s.Name()+" agent is not working! Do you want to enable it?", walk.MsgBoxOKCancel) == utils.IDOK {
 		if err := utils.RunMeElevatedWithArgs("-i"); err != nil {
 			walk.MsgBox(nil, "Install Service Error:", err.Error(), walk.MsgBoxIconError)
 		}

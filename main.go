@@ -13,11 +13,12 @@ import (
 
 	"github.com/Microsoft/go-winio"
 	"github.com/buptczq/WinCryptSSHAgent/app"
+	"github.com/buptczq/WinCryptSSHAgent/config"
 	"github.com/buptczq/WinCryptSSHAgent/sshagent"
 	"github.com/buptczq/WinCryptSSHAgent/utils"
-	flags "github.com/jessevdk/go-flags"
 	"github.com/kayrus/putty"
 	"github.com/lxn/walk"
+	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/agent"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
@@ -25,24 +26,17 @@ import (
 
 const agentTitle = "WinCrypt SSH Agent v1.1.9"
 
-var applications = []app.Application{
-	new(app.PubKeyView),
-	new(app.WSL),
-	new(app.VSock),
-	new(app.Cygwin),
-	new(app.NamedPipe),
-	new(app.Pageant),
-	new(app.XShell),
-}
-
-type Opts struct {
-	Verbose           []bool   `short:"v" long:"verbose" description:"Verbosity"`
-	InstallHVService  bool     `short:"i" description:"Install Hyper-V Guest Communication Services"`
-	ExternalAgentPath []string `short:"a" description:"External agent path(win namped pipe only)"`
-	DisableCapi       bool     `long:"disable-capi" description:"Disable Windows Crypto API"`
-	DisablePINCache   bool     `long:"disable-pin-cache" description:"Clear the Smart Card PIN Cache after each operation"`
-	AllowMultiple     bool     `long:"allow-multiple" description:"Allow multiple agent instances"`
-}
+var (
+	flagVerbose          int
+	flagInstallHVService bool
+	flagExternalAgent    []string
+	flagDisableCapi      bool
+	flagDisablePINCache  bool
+	flagAllowMultiple    bool
+	flagListSockets      bool
+	flagKeys             []string
+	rootCmd              *cobra.Command
+)
 
 const instanceMutexName = `Local\WinCryptSSHAgent.Mutex`
 
@@ -132,26 +126,48 @@ func initDebugLog() {
 }
 
 func main() {
-	var opts Opts
-	keysFiles, lerr := flags.Parse(&opts)
-	if lerr != nil {
-		if lperr, ok := lerr.(*flags.Error); ok {
-			switch lperr.Type {
-			case flags.ErrHelp:
-				return
-			case flags.ErrUnknown:
-				log.Fatal(lerr)
-			case flags.ErrTag:
-				log.Fatal(lerr)
-			}
-
-			return
-		} else {
-			log.Fatal(lerr)
-		}
+	rootCmd = &cobra.Command{
+		Use:   "WinCryptSSHAgent [keys.ppk...]",
+		Short: agentTitle,
+		CompletionOptions: cobra.CompletionOptions{
+			DisableDefaultCmd: true,
+		},
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			flagKeys = args
+			return runAgent()
+		},
 	}
+	rootCmd.Flags().CountVarP(&flagVerbose, "verbose", "v", "verbosity (-vvv enables debug log)")
+	rootCmd.Flags().BoolVarP(&flagInstallHVService, "install-hv-service", "i", false,
+		"Install Hyper-V Guest Communication Services")
+	rootCmd.Flags().StringArrayP("agent", "a", nil,
+		"External agent path (win named pipe only)")
+	rootCmd.Flags().BoolVar(&flagDisableCapi, "disable-capi", false, "Disable Windows Crypto API")
+	rootCmd.Flags().BoolVar(&flagDisablePINCache, "disable-pin-cache", false,
+		"Clear the Smart Card PIN Cache after each operation")
+	rootCmd.Flags().BoolVar(&flagAllowMultiple, "allow-multiple", false, "Allow multiple agent instances")
+	rootCmd.Flags().StringArray("socket", nil, "add/override a socket: type=name|path (repeatable)")
+	rootCmd.Flags().StringArray("no-socket", nil, "disable a socket by name (repeatable)")
+	rootCmd.Flags().StringP("config", "c", "", "path to config.yaml (default: config.yaml next to the executable)")
+	rootCmd.Flags().BoolVar(&flagListSockets, "list-sockets", false, "print resolved socket configuration and exit")
 
-	switch len(opts.Verbose) {
+	if err := rootCmd.Execute(); err != nil {
+		if err == errExitSilently {
+			return
+		}
+		walk.MsgBox(nil, agentTitle, err.Error(), walk.MsgBoxIconError)
+		log.Fatal(err)
+	}
+}
+
+// errExitSilently is returned when a helper mode (--list-sockets etc.)
+// already printed its output and the agent must not start.
+var errExitSilently = fmt.Errorf("exit silently")
+
+func runAgent() error {
+	switch flagVerbose {
 	case 3:
 		os.Setenv("WCSA_DEBUG", "1")
 	}
@@ -160,15 +176,35 @@ func main() {
 		initDebugLog()
 	}
 
-	if opts.InstallHVService {
+	if flagInstallHVService {
 		installService()
-		return
+		return nil
 	}
 
-	mutex, err := acquireInstanceMutex(opts.AllowMultiple)
+	// sockets: config file + CLI overrides
+	configPath, _ := rootCmd.Flags().GetString("config")
+	socketFlags, _ := rootCmd.Flags().GetStringArray("socket")
+	noSocketFlags, _ := rootCmd.Flags().GetStringArray("no-socket")
+	sockets, err := config.Resolve(configPath, socketFlags, noSocketFlags)
+	if err != nil {
+		walk.MsgBox(nil, agentTitle, err.Error(), walk.MsgBoxIconError)
+		return errExitSilently
+	}
+	if os.Getenv("WCSA_DEBUG") == "1" || flagVerbose >= 2 {
+		lf, _ := os.OpenFile("wcsa-resolved.log", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0664)
+		fmt.Fprintf(lf, "raw flags: config=%q sockets=%q no-sockets=%q\n", configPath, socketFlags, noSocketFlags)
+		fmt.Fprint(lf, config.FormatSockets(sockets))
+		lf.Close()
+	}
+	if flagListSockets {
+		walk.MsgBox(nil, agentTitle, config.FormatSockets(sockets), walk.MsgBoxIconInformation)
+		return errExitSilently
+	}
+
+	mutex, err := acquireInstanceMutex(flagAllowMultiple)
 	if err != nil {
 		walk.MsgBox(nil, agentTitle, err.Error(), walk.MsgBoxIconWarning)
-		return
+		return errExitSilently
 	}
 	defer windows.CloseHandle(mutex)
 
@@ -180,13 +216,13 @@ func main() {
 		hvClient = true
 	}
 
-	capi.SetDisablePINCache(opts.DisablePINCache)
+	capi.SetDisablePINCache(flagDisablePINCache)
 
 	// agent
 	var ag agent.Agent
 	if hvClient {
 		ag = sshagent.NewHVAgent()
-	} else if opts.DisableCapi {
+	} else if flagDisableCapi {
 		ag = sshagent.NewKeyRingAgent()
 	} else {
 		cag := new(sshagent.CAPIAgent)
@@ -195,7 +231,7 @@ func main() {
 		ag = sshagent.NewWrappedAgent(defaultAgent, []agent.Agent{agent.Agent(cag)})
 	}
 
-	for _, keyFile := range keysFiles {
+	for _, keyFile := range flagKeys {
 		puttyKey, err := putty.NewFromFile(keyFile)
 		if err != nil {
 			continue
@@ -213,8 +249,8 @@ func main() {
 		ag.Add(agent.AddedKey{PrivateKey: privkey, Comment: puttyKey.Comment})
 	}
 
-	lexternalAgents := make([]agent.Agent, 0, len(opts.ExternalAgentPath))
-	for _, lexternalAgentPath := range opts.ExternalAgentPath {
+	lexternalAgents := make([]agent.Agent, 0)
+	for _, lexternalAgentPath := range flagExternalAgent {
 		lpipe, lerr := os.OpenFile(lexternalAgentPath, os.O_RDWR, os.ModeNamedPipe)
 		if lerr != nil {
 			walk.MsgBox(nil, "Can't open pipe to external agent", err.Error(), walk.MsgBoxIconError)
@@ -261,14 +297,25 @@ func main() {
 	server := &sshagent.Server{Agent: ag}
 
 	// application
+	apps := make([]app.App, 0, len(sockets)+1)
+	apps = append(apps, new(app.PubKeyView))
+	for _, sc := range sockets {
+		a, err := app.NewSocket(sc)
+		if err != nil {
+			walk.MsgBox(nil, agentTitle, err.Error(), walk.MsgBoxIconWarning)
+			continue
+		}
+		apps = append(apps, a)
+	}
+
 	wg := new(sync.WaitGroup)
-	for _, v := range applications {
+	for _, v := range apps {
 		v.Menu(ni)
 		wg.Add(1)
-		go func(application app.Application) {
+		go func(application app.App) {
 			err := application.Run(ctx, server.SSHAgentHandler)
 			if err != nil {
-				walk.MsgBox(nil, application.AppId().String()+" Error:", err.Error(), walk.MsgBoxIconWarning)
+				walk.MsgBox(nil, application.Name()+" Error:", err.Error(), walk.MsgBoxIconWarning)
 			}
 			wg.Done()
 		}(v)
@@ -297,4 +344,5 @@ func main() {
 	case <-time.After(time.Second * 5):
 	case <-done:
 	}
+	return nil
 }

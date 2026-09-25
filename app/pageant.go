@@ -10,7 +10,9 @@ import (
 	"github.com/lxn/walk"
 )
 
-type Pageant struct{}
+type Pageant struct {
+	baseApp
+}
 
 func (*Pageant) Run(ctx context.Context, handler func(conn io.ReadWriteCloser)) error {
 	debug := false
@@ -38,10 +40,6 @@ func (*Pageant) Run(ctx context.Context, handler func(conn io.ReadWriteCloser)) 
 			wg.Done()
 		}()
 	}
-}
-
-func (*Pageant) AppId() AppId {
-	return APP_PAGEANT
 }
 
 func (s *Pageant) Menu(ni *walk.NotifyIcon) {

@@ -21,6 +21,7 @@ const (
 )
 
 type XShell struct {
+	baseApp
 	cookie string
 }
 
@@ -61,10 +62,6 @@ func (s *XShell) Run(ctx context.Context, handler func(conn io.ReadWriteCloser))
 			wg.Done()
 		}(conn)
 	}
-}
-
-func (*XShell) AppId() AppId {
-	return APP_XSHELL
 }
 
 func (s *XShell) Menu(ni *walk.NotifyIcon) {

@@ -16,16 +16,23 @@ import (
 )
 
 type WSL struct {
-	running bool
-	help    string
+	baseApp
+	sockName string // file name or absolute path of the unix socket
+	running  bool
+	help     string
 }
 
 func listenUnixSock(filename string) (string, net.Listener, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", nil, err
+	var path string
+	if filepath.IsAbs(filename) {
+		path = filename
+	} else {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", nil, err
+		}
+		path = filepath.Join(home, filename)
 	}
-	path := filepath.Join(home, filename)
 	os.Remove(path)
 	l, err := net.Listen("unix", path)
 	return path, l, err
@@ -45,7 +52,7 @@ func winPath2Unix(path string) string {
 func (s *WSL) Run(ctx context.Context, handler func(conn io.ReadWriteCloser)) error {
 	fallback := false
 	// try to listen unix sock (Win10 1803)
-	path, l, err := listenUnixSock(WSL_SOCK)
+	path, l, err := listenUnixSock(s.sockName)
 	if err != nil {
 		// fallback to raw tcp
 		l, err = net.Listen("tcp", "localhost:0")
@@ -87,14 +94,10 @@ func (s *WSL) Run(ctx context.Context, handler func(conn io.ReadWriteCloser)) er
 	}
 }
 
-func (*WSL) AppId() AppId {
-	return APP_WSL
-}
-
 func (s *WSL) Menu(ni *walk.NotifyIcon) {
 	laction := walk.NewAction()
 	ni.ContextMenu().Actions().Add(laction)
-	laction.SetText("Show " + s.AppId().String() + " Settings")
+	laction.SetText("Show " + s.Name() + " Settings")
 	laction.Triggered().Attach(func() {
 		s.onClick()
 	})
@@ -102,10 +105,10 @@ func (s *WSL) Menu(ni *walk.NotifyIcon) {
 
 func (s *WSL) onClick() {
 	if s.running {
-		if walk.MsgBox(nil, s.AppId().FullName()+" (OK to copy):", s.help, walk.MsgBoxOKCancel) == utils.IDOK {
+		if walk.MsgBox(nil, s.Name()+" (OK to copy):", s.help, walk.MsgBoxOKCancel) == utils.IDOK {
 			utils.SetClipBoard(s.help)
 		}
 	} else {
-		walk.MsgBox(nil, "Error:", s.AppId().String()+" agent doesn't work!", walk.MsgBoxIconWarning)
+		walk.MsgBox(nil, "Error:", s.Name()+" agent doesn't work!", walk.MsgBoxIconWarning)
 	}
 }

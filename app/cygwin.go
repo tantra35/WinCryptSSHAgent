@@ -19,8 +19,10 @@ import (
 )
 
 type Cygwin struct {
+	baseApp
+	sockFile string // file name or absolute path of the cygwin sock file
 	running  bool
-	sockfile string
+	sockpath string
 }
 
 func createCygwinSocket(filename string, port int) ([]byte, error) {
@@ -67,13 +69,23 @@ func cygwinHandshake(conn net.Conn, uuid []byte) error {
 	return nil
 }
 
-func (s *Cygwin) Run(ctx context.Context, handler func(conn io.ReadWriteCloser)) error {
+func resolveSockFile(filename string) (string, error) {
+	if filepath.IsAbs(filename) {
+		return filename, nil
+	}
 	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, filename), nil
+}
+
+func (s *Cygwin) Run(ctx context.Context, handler func(conn io.ReadWriteCloser)) error {
+	sockfile, err := resolveSockFile(s.sockFile)
 	if err != nil {
 		return err
 	}
-	sockfile := filepath.Join(home, CYGWIN_SOCK)
-	s.sockfile = sockfile
+	s.sockpath = sockfile
 	// listen tcp socket
 	l, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
@@ -119,14 +131,10 @@ func (s *Cygwin) Run(ctx context.Context, handler func(conn io.ReadWriteCloser))
 	}
 }
 
-func (*Cygwin) AppId() AppId {
-	return APP_CYGWIN
-}
-
 func (s *Cygwin) Menu(ni *walk.NotifyIcon) {
 	laction := walk.NewAction()
 	ni.ContextMenu().Actions().Add(laction)
-	laction.SetText("Show " + s.AppId().String() + " Settings")
+	laction.SetText("Show " + s.Name() + " Settings")
 	laction.Triggered().Attach(func() {
 		s.onClick()
 	})
@@ -134,11 +142,11 @@ func (s *Cygwin) Menu(ni *walk.NotifyIcon) {
 
 func (s *Cygwin) onClick() {
 	if s.running {
-		help := fmt.Sprintf(`export SSH_AUTH_SOCK="%s"`, s.sockfile)
-		if walk.MsgBox(nil, s.AppId().FullName()+" (OK to copy):", help, walk.MsgBoxOKCancel) == utils.IDOK {
+		help := fmt.Sprintf(`export SSH_AUTH_SOCK="%s"`, s.sockpath)
+		if walk.MsgBox(nil, s.Name()+" (OK to copy):", help, walk.MsgBoxOKCancel) == utils.IDOK {
 			utils.SetClipBoard(help)
 		}
 	} else {
-		walk.MsgBox(nil, "Error:", s.AppId().String()+" agent doesn't work!", walk.MsgBoxIconWarning)
+		walk.MsgBox(nil, "Error:", s.Name()+" agent doesn't work!", walk.MsgBoxIconWarning)
 	}
 }

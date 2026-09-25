@@ -14,12 +14,14 @@ import (
 )
 
 type NamedPipe struct {
-	running bool
+	baseApp
+	pipePath string
+	running  bool
 }
 
 func (s *NamedPipe) Run(ctx context.Context, handler func(conn io.ReadWriteCloser)) error {
 	var cfg = &winio.PipeConfig{}
-	pipe, err := winio.ListenPipe(NAMED_PIPE, cfg)
+	pipe, err := winio.ListenPipe(s.pipePath, cfg)
 	if err != nil {
 		return err
 	}
@@ -51,22 +53,17 @@ func (s *NamedPipe) Run(ctx context.Context, handler func(conn io.ReadWriteClose
 	}
 }
 
-func (*NamedPipe) AppId() AppId {
-	return APP_WINSSH
-}
-
 func (s *NamedPipe) Menu(ni *walk.NotifyIcon) {
 	laction := walk.NewAction()
 	ni.ContextMenu().Actions().Add(laction)
-	laction.SetText("Show " + s.AppId().String() + " Settings")
+	laction.SetText("Show " + s.Name() + " Settings")
 	laction.Triggered().Attach(func() {
 		s.onClick()
 	})
 
-	app := AppId(APP_SECURECRT)
 	lsecurecrtaction := walk.NewAction()
 	ni.ContextMenu().Actions().Add(lsecurecrtaction)
-	lsecurecrtaction.SetText("Show " + app.String() + " Settings")
+	lsecurecrtaction.SetText("Show " + s.Name() + " (SecureCRT) Settings")
 	lsecurecrtaction.Triggered().Attach(func() {
 		s.onClickSC()
 	})
@@ -74,22 +71,22 @@ func (s *NamedPipe) Menu(ni *walk.NotifyIcon) {
 
 func (s *NamedPipe) onClick() {
 	if s.running {
-		help := fmt.Sprintf(`set SSH_AUTH_SOCK=%s`, NAMED_PIPE)
-		if walk.MsgBox(nil, s.AppId().FullName()+" (OK to copy):", help, walk.MsgBoxOKCancel) == utils.IDOK {
+		help := fmt.Sprintf(`set SSH_AUTH_SOCK=%s`, s.pipePath)
+		if walk.MsgBox(nil, s.Name()+" (OK to copy):", help, walk.MsgBoxOKCancel) == utils.IDOK {
 			utils.SetClipBoard(help)
 		}
 	} else {
-		walk.MsgBox(nil, "Error:", s.AppId().String()+" agent doesn't work!", walk.MsgBoxIconWarning)
+		walk.MsgBox(nil, "Error:", s.Name()+" agent doesn't work!", walk.MsgBoxIconWarning)
 	}
 }
 
 func (s *NamedPipe) onClickSC() {
 	if s.running {
-		help := fmt.Sprintf(`setx "VANDYKE_SSH_AUTH_SOCK" "%s"`, NAMED_PIPE)
-		if walk.MsgBox(nil, s.AppId().FullName()+" (OK to copy):", help, walk.MsgBoxOKCancel) == utils.IDOK {
+		help := fmt.Sprintf(`setx "VANDYKE_SSH_AUTH_SOCK" "%s"`, s.pipePath)
+		if walk.MsgBox(nil, s.Name()+" (OK to copy):", help, walk.MsgBoxOKCancel) == utils.IDOK {
 			utils.SetClipBoard(help)
 		}
 	} else {
-		walk.MsgBox(nil, "Error:", s.AppId().String()+" agent doesn't work!", walk.MsgBoxIconWarning)
+		walk.MsgBox(nil, "Error:", s.Name()+" agent doesn't work!", walk.MsgBoxIconWarning)
 	}
 }

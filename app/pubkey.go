@@ -191,8 +191,8 @@ func (s *PubKeyView) Run(ctx context.Context, handler func(conn io.ReadWriteClos
 	return nil
 }
 
-func (*PubKeyView) AppId() AppId {
-	return APP_PUBKEY
+func (*PubKeyView) Name() string {
+	return "pubkey"
 }
 
 func (s *PubKeyView) Menu(ni *walk.NotifyIcon) {
