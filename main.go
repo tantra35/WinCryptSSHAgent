@@ -139,6 +139,10 @@ func main() {
 			return runAgent()
 		},
 	}
+	// GUI binary: cobra's mousetrap prints help and os.Exit(1) after 5s when
+	// launched by double-click from explorer - the agent IS meant to be
+	// started that way, so disable the trap entirely.
+	cobra.MousetrapHelpText = ""
 	rootCmd.Flags().CountVarP(&flagVerbose, "verbose", "v", "verbosity (-vvv enables debug log)")
 	rootCmd.Flags().BoolVarP(&flagInstallHVService, "install-hv-service", "i", false,
 		"Install Hyper-V Guest Communication Services")
