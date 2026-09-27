@@ -64,9 +64,14 @@ CLI на cobra тянет зависимость `inconshreveable/mousetrap`. Н
 
 ### Совместимость ssh-клиентов
 
-- msys-ssh (Git/usr/bin/ssh) не умеет named pipe — тестировать только нативным `C:/Windows/System32/OpenSSH/ssh.exe`.
-- `SSH_AUTH_SOCK` на cygwin-сокет: листинг ключей работает, аутентификация — нет (несовместимость MSYS AF_UNIX).
+- msys-ssh (Git/usr/bin/ssh, OpenSSH 10.x) не умеет named pipe — cygwin-сокет тестировать им, named pipe — нативным `C:/Windows/System32/OpenSSH/ssh.exe` (9.5).
+- **session-bind@openssh.com** (OpenSSH ≥ 8.9): клиент перед подписью привязывает агентную сессию extension-запросом; если агент ответил FAILURE — листинг работает, но подпись отклоняется (`ssh_agent_bind_hostkey: agent refused operation`). Симптом «листинг есть, аутентификации нет» — первым делом проверять это. Наш ответ: перехват в `Extension()` у `WrappedAgent`/`CAPIAgent` (SUCCESS без хранения привязки). Подробности и ссылки — комментарий к константам в `sshagent/server.go`.
+- cygwin-транспорт — это TCP на localhost + файл-маркер с портом/UUID (см. `app/cygwin.go`); никакой «несовместимости MSYS AF_UNIX» нет.
 - «Too many authentication failures» при многих ключах в агенте: на клиенте лечится `IdentitiesOnly yes` + `IdentityFile <ключ.pub>` (публичного достаточно — подписывает агент), сервер режет после `MaxAuthTries` (по умолчанию 6).
+
+### Отладка агента (проверенная методика)
+
+Тихая смерть/странное поведение GUI-процесса: текстовый лог в `%LOCALAPPDATA%` + heartbeat + `runtime.Stack(all=true)` дампы. Для разбора протокола агента — обёртка `loggingConn` вокруг conn (логировать типы сообщений: 11=list, 13=sign, 27=extension, ответы 6=success, 5=failure, 12=identities). Не предполагать «антивирус», пока не снят дамп стеков.
 
 ## Git / push
 
