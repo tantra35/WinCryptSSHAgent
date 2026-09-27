@@ -260,5 +260,9 @@ func (*CAPIAgent) Signers() ([]ssh.Signer, error) {
 }
 
 func (s *CAPIAgent) Extension(extensionType string, contents []byte) ([]byte, error) {
+	if extensionType == sessionBindExtension {
+		// Accept without storing the binding (see WrappedAgent.Extension).
+		return []byte{agentSuccess}, nil
+	}
 	return nil, agent.ErrExtensionUnsupported
 }

@@ -108,5 +108,11 @@ func (a *WrappedAgent) Signers() ([]ssh.Signer, error) {
 }
 
 func (a *WrappedAgent) Extension(extensionType string, contents []byte) ([]byte, error) {
+	if extensionType == sessionBindExtension {
+		// Accept without storing the binding - same trust level as
+		// pre-8.9 agents. Per PROTOCOL.agent 4.7 the success response
+		// contents are unspecified; an empty success is fine.
+		return []byte{agentSuccess}, nil
+	}
 	return nil, agent.ErrExtensionUnsupported
 }
