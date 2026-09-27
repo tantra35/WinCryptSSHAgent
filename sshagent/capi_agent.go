@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"syscall"
 
@@ -20,6 +21,19 @@ type sshKey struct {
 	cert    *capi.Certificate
 	signer  ssh.Signer
 	comment string
+}
+
+// certComment builds the key comment shown in ssh-add listings:
+// the subject CommonName plus certificate details in parentheses.
+func certComment(cert *capi.Certificate) string {
+	parts := []string{cert.Subject.CommonName}
+	if issuer := cert.Issuer.CommonName; issuer != "" && issuer != cert.Subject.CommonName {
+		parts = append(parts, "issued by "+issuer)
+	}
+	if !cert.NotAfter.IsZero() {
+		parts = append(parts, "valid until "+cert.NotAfter.Format("2006-01-02"))
+	}
+	return strings.Join(parts, " (") + strings.Repeat(")", len(parts)-1)
 }
 
 type CAPIAgent struct {
@@ -68,7 +82,7 @@ func (s *CAPIAgent) loadCerts() (err error) {
 		}
 		key := &sshKey{
 			cert:    cert,
-			comment: cert.Subject.CommonName,
+			comment: certComment(cert),
 		}
 		switch pub.Type() {
 		case ssh.KeyAlgoRSA:
