@@ -24,16 +24,20 @@ type sshKey struct {
 }
 
 // certComment builds the key comment shown in ssh-add listings:
-// the subject CommonName plus certificate details in parentheses.
+// the subject CommonName followed by certificate details in parentheses.
 func certComment(cert *capi.Certificate) string {
-	parts := []string{cert.Subject.CommonName}
+	comment := cert.Subject.CommonName
+	var details []string
 	if issuer := cert.Issuer.CommonName; issuer != "" && issuer != cert.Subject.CommonName {
-		parts = append(parts, "issued by "+issuer)
+		details = append(details, "issued by "+issuer)
 	}
 	if !cert.NotAfter.IsZero() {
-		parts = append(parts, "valid until "+cert.NotAfter.Format("2006-01-02"))
+		details = append(details, "valid until "+cert.NotAfter.Format("2006-01-02"))
 	}
-	return strings.Join(parts, " (") + strings.Repeat(")", len(parts)-1)
+	if len(details) > 0 {
+		comment += " (" + strings.Join(details, ", ") + ")"
+	}
+	return comment
 }
 
 type CAPIAgent struct {
