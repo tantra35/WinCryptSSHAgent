@@ -31,9 +31,6 @@ func certComment(cert *capi.Certificate) string {
 	if issuer := cert.Issuer.CommonName; issuer != "" && issuer != cert.Subject.CommonName {
 		details = append(details, "issued by "+issuer)
 	}
-	if !cert.NotAfter.IsZero() {
-		details = append(details, "valid until "+cert.NotAfter.Format("2006-01-02"))
-	}
 	if len(details) > 0 {
 		comment += " (" + strings.Join(details, ", ") + ")"
 	}
